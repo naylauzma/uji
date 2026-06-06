@@ -1,56 +1,33 @@
 import streamlit as st
 import tensorflow as tf
+from PIL import Image
 import tempfile
 
-st.title("Pembaca File Model .keras")
+st.title("Klasifikasi CNN")
 
 model_file = st.file_uploader(
-    "Upload Model .keras",
+    "Upload Model CNN (.keras)",
     type=["keras"]
+)
+
+image_file = st.file_uploader(
+    "Upload Gambar",
+    type=["jpg", "jpeg", "png"]
 )
 
 if model_file is not None:
 
-    try:
-        # Simpan sementara
-        with tempfile.NamedTemporaryFile(
-            delete=False,
-            suffix=".keras"
-        ) as tmp:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".keras") as tmp:
+        tmp.write(model_file.read())
+        model_path = tmp.name
 
-            tmp.write(model_file.read())
-            model_path = tmp.name
+    model = tf.keras.models.load_model(model_path)
 
-        # Load model
-        model = tf.keras.models.load_model(
-            model_path,
-            compile=False
-        )
+    st.success("Model berhasil dimuat")
 
-        st.success("Model berhasil dibaca")
+    if image_file is not None:
+        img = Image.open(image_file)
 
-        st.subheader("Informasi Model")
+        st.image(img, use_container_width=True)
 
-        st.write("Nama Model:")
-        st.write(model.name)
-
-        st.write("Input Shape:")
-        st.write(model.input_shape)
-
-        st.write("Output Shape:")
-        st.write(model.output_shape)
-
-        st.write("Jumlah Layer:")
-        st.write(len(model.layers))
-
-        st.subheader("Daftar Layer")
-
-        for i, layer in enumerate(model.layers):
-
-            st.write(
-                f"{i+1}. {layer.name} ({layer.__class__.__name__})"
-            )
-
-    except Exception as e:
-
-        st.error(f"Gagal membaca model: {e}")
+        st.write("Siap untuk prediksi")
