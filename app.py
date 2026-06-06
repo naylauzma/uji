@@ -45,7 +45,7 @@ if model_file is not None:
         )
         except Exception as e:
             st.error(f"Gagal memuat model: {e}")
-        )
+        
 
         st.success("Model berhasil dimuat")
 
