@@ -40,7 +40,11 @@ if model_file is not None:
         # Load model
         model = tf.keras.models.load_model(
             model_path,
-            compile=False
+            compile=False,
+            safe_mode=False
+        )
+        except Exception as e:
+            st.error(f"Gagal memuat model: {e}")
         )
 
         st.success("Model berhasil dimuat")
