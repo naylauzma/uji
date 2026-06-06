@@ -3,85 +3,71 @@ import tensorflow as tf
 import numpy as np
 from PIL import Image
 import tempfile
-import zipfile
-import os
 
-st.set_page_config(
-    page_title="Klasifikasi Gambar",
-    page_icon="🖼️",
-    layout="centered"
-)
+st.title("Klasifikasi Gambar dengan CNN")
 
-st.title("Klasifikasi Gambar Menggunakan Model ZIP")
-
-# Upload ZIP model
-zip_file = st.file_uploader(
-    "Upload File ZIP Model",
-    type=["zip"]
+# Upload model
+model_file = st.file_uploader(
+    "Upload Model (.keras)",
+    type=["keras"]
 )
 
 # Upload gambar
 image_file = st.file_uploader(
-    "Upload Gambar Uji",
+    "Upload Gambar",
     type=["jpg", "jpeg", "png"]
 )
 
-def extract_model(zip_path, extract_dir):
-    with zipfile.ZipFile(zip_path, "r") as zip_ref:
-        zip_ref.extractall(extract_dir)
+# Nama kelas
+class_names = [
+    "Kelinci",
+    "Lumba-Lumba"
+]
 
-    model_path = None
-
-    for root, dirs, files in os.walk(extract_dir):
-        for file in files:
-            if file.endswith(".keras") or file.endswith(".h5"):
-                model_path = os.path.join(root, file)
-                return model_path
-
-    return None
-
-if zip_file is not None and image_file is not None:
+if model_file is not None:
 
     try:
-        # Simpan ZIP sementara
-        with tempfile.TemporaryDirectory() as temp_dir:
 
-            zip_path = os.path.join(temp_dir, "model.zip")
+        # Simpan model sementara
+        with tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix=".keras"
+        ) as tmp:
 
-            with open(zip_path, "wb") as f:
-                f.write(zip_file.getbuffer())
+            tmp.write(model_file.read())
+            model_path = tmp.name
 
-            # Ekstrak model
-            model_path = extract_model(zip_path, temp_dir)
+        # Load model
+        model = tf.keras.models.load_model(
+            model_path
+        )
 
-            if model_path is None:
-                st.error(
-                    "Tidak ditemukan file model .keras atau .h5 di dalam ZIP"
-                )
-                st.stop()
+        st.success("Model berhasil dimuat")
 
-            # Load model
-            model = tf.keras.models.load_model(model_path)
+        if image_file is not None:
 
-            # Buka gambar
-            image = Image.open(image_file).convert("RGB")
+            # Tampilkan gambar
+            img = Image.open(image_file).convert("RGB")
 
             st.image(
-                image,
+                img,
                 caption="Gambar Uji",
                 use_container_width=True
             )
 
             # Ambil ukuran input model
-            input_shape = model.input_shape
+            _, h, w, _ = model.input_shape
 
-            img_height = input_shape[1]
-            img_width = input_shape[2]
+            # Resize gambar
+            img = img.resize((w, h))
 
             # Preprocessing
-            img = image.resize((img_width, img_height))
+            img_array = np.array(img)
 
-            img_array = np.array(img) / 255.0
+            img_array = (
+                img_array.astype("float32")
+                / 255.0
+            )
 
             img_array = np.expand_dims(
                 img_array,
@@ -89,34 +75,63 @@ if zip_file is not None and image_file is not None:
             )
 
             # Prediksi
-            prediction = model.predict(img_array)
+            prediction = model.predict(
+                img_array,
+                verbose=0
+            )
 
-            st.subheader("Hasil Prediksi")
+            predicted_index = np.argmax(
+                prediction
+            )
 
-            if prediction.shape[1] == 1:
+            predicted_class = class_names[
+                predicted_index
+            ]
 
-                score = float(prediction[0][0])
+            confidence = (
+                np.max(prediction) * 100
+            )
 
-                if score > 0.5:
-                    st.success("Kelas 1")
-                else:
-                    st.success("Kelas 0")
+            st.subheader(
+                "Hasil Klasifikasi"
+            )
 
-                st.write(f"Skor Prediksi: {score:.4f}")
+            st.success(
+                f"{predicted_class}"
+            )
 
-            else:
+            st.write(
+                f"Keyakinan: {confidence:.2f}%"
+            )
 
-                predicted_class = np.argmax(prediction)
+            st.subheader(
+                "Detail Probabilitas"
+            )
 
-                st.success(
-                    f"Kelas Prediksi: {predicted_class}"
+            for i, label in enumerate(
+                class_names
+            ):
+
+                prob = (
+                    prediction[0][i] * 100
                 )
 
                 st.write(
-                    "Probabilitas:"
+                    f"{label}: {prob:.2f}%"
                 )
 
-                st.write(prediction[0])
+                st.progress(
+                    int(prob)
+                )
 
     except Exception as e:
-        st.error(f"Terjadi kesalahan: {e}")
+
+        st.error(
+            f"Terjadi kesalahan: {e}"
+        )
+
+else:
+
+    st.info(
+        "Silakan upload model .keras terlebih dahulu"
+    )
