@@ -39,7 +39,7 @@ if model_file is not None:
 
         # Load model
         model = tf.keras.models.load_model(
-            model_path
+            model_path,
             compile=False
         )
 
